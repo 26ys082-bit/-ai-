@@ -7,11 +7,12 @@ import joblib
 st.set_page_config(page_title="AI 글자 성적 예측기", layout="wide")
 st.title("🎯 글자 성적(등급) 예측 시스템")
 
-# 1. 모델 로드
+# 1. 모델 로드 (.txt 확장자 우회 방식)
 @st.cache_resource
 def load_model_artifacts():
     try:
-        return joblib.load('font_grade_model.pkl')
+        # 깃허브 용량 제한 우회를 위해 .txt로 이름을 바꾼 모델 파일을 읽어옵니다.
+        return joblib.load('font_grade_model.txt')
     except:
         return None
 
@@ -21,7 +22,7 @@ if artifacts:
     le = artifacts['le']
     feature_columns = artifacts['feature_columns']
 else:
-    st.error("❌ 'font_grade_model.pkl' 파일을 찾을 수 없습니다. GitHub 저장소에 함께 업로드해주세요.")
+    st.error("❌ 'font_grade_model.txt' 파일을 찾을 수 없습니다. 파일명이 정확히 일치하는지, 깃허브 저장소에 업로드되었는지 확인해주세요.")
     st.stop()
 
 # 2. 피처 엔지니어링 함수
