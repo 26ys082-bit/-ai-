@@ -2,18 +2,34 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import os
+import urllib.request
 
 # 페이지 설정
 st.set_page_config(page_title="AI 글자 성적 예측기", layout="wide")
 st.title("🎯 글자 성적(등급) 예측 시스템")
 
-# 1. 모델 로드 (.txt 확장자 우회 방식)
+# 1. 모델 로드 (서버 직배송 방식 - 용량 제한 완벽 우회)
 @st.cache_resource
 def load_model_artifacts():
+    model_path = 'font_grade_model.pkl'
+    
+    # 깃허브 업로드 실패 문제를 해결하기 위해 안전한 외부 클라우드 백업 주소에서 직접 다운로드합니다.
+    remote_url = 'https://huggingface.co/datasets/rlatldn/backup/resolve/main/font_grade_model.pkl'
+    
+    if not os.path.exists(model_path):
+        with st.spinner("⏳ 대용량 AI 모델 파일을 서버에서 불러오는 중입니다... (최초 1회만 진행)"):
+            try:
+                # 데이터 유실 없이 완벽하게 바이너리 모델을 다운로드
+                urllib.request.urlretrieve(remote_url, model_path)
+            except Exception as e:
+                st.error(f"❌ 모델 원격 다운로드 실패. 네트워크 상태를 확인하세요. 에러: {e}")
+                return None
+                
     try:
-        # 깃허브 용량 제한 우회를 위해 .txt로 이름을 바꾼 모델 파일을 읽어옵니다.
-        return joblib.load('font_grade_model.txt')
-    except:
+        return joblib.load(model_path)
+    except Exception as e:
+        st.error(f"❌ 가져온 모델 파일을 읽는 중 오류가 발생했습니다. (파일 손상 가능성): {e}")
         return None
 
 artifacts = load_model_artifacts()
@@ -22,7 +38,6 @@ if artifacts:
     le = artifacts['le']
     feature_columns = artifacts['feature_columns']
 else:
-    st.error("❌ 'font_grade_model.txt' 파일을 찾을 수 없습니다. 파일명이 정확히 일치하는지, 깃허브 저장소에 업로드되었는지 확인해주세요.")
     st.stop()
 
 # 2. 피처 엔지니어링 함수
@@ -31,7 +46,6 @@ def engineer_features(df_input):
     X_eng = pd.DataFrame()
     eps = 1e-6
     
-    # 원본 필요한 열 목록
     target_cols = [
         '총 글자 수 (개)', '평균 글자 가로 크기 (px)', '글자 가로 크기 표준편차', 
         '평균 글자 세로 크기 (px)', '글자 세로 크기 표준편차', '평균 글자 가로/세로 비율', 
@@ -57,7 +71,6 @@ def engineer_features(df_input):
     X_eng['면적대비_간격']    = X_eng['평균 글자 간 간격 (px)']       / (X_eng['평균 순수 글자 면적 (px2)']    + eps)
     X_eng['불규칙성']         = (X_eng['가로크기_CV'] + X_eng['세로크기_CV'] + X_eng['면적_CV']) / 3
     
-    # 순서 일치 및 누락 방지
     for c in feature_columns:
         if c not in X_eng.columns:
             X_eng[c] = 0
