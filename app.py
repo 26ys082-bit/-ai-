@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -31,6 +30,7 @@ def engineer_features(df_input):
     X_eng = pd.DataFrame()
     eps = 1e-6
     
+    # 원본 필요한 열 목록
     target_cols = [
         '총 글자 수 (개)', '평균 글자 가로 크기 (px)', '글자 가로 크기 표준편차', 
         '평균 글자 세로 크기 (px)', '글자 세로 크기 표준편차', '평균 글자 가로/세로 비율', 
@@ -56,6 +56,7 @@ def engineer_features(df_input):
     X_eng['면적대비_간격']    = X_eng['평균 글자 간 간격 (px)']       / (X_eng['평균 순수 글자 면적 (px2)']    + eps)
     X_eng['불규칙성']         = (X_eng['가로크기_CV'] + X_eng['세로크기_CV'] + X_eng['면적_CV']) / 3
     
+    # 순서 일치 및 누락 방지
     for c in feature_columns:
         if c not in X_eng.columns:
             X_eng[c] = 0
@@ -123,4 +124,14 @@ elif menu == "구글 스프레드시트 불러오기":
                                       min_value=0, max_value=len(data)-1, value=0)
             
             selected_row = data.iloc[[row_idx]]
-            st.write(f"🔍 선택된 {row_idx}번
+            st.write(f"🔍 선택된 {row_idx}번 행의 수치 데이터:")
+            st.dataframe(selected_row.drop(columns=['성적', '파일명'], errors='ignore'))
+            
+            if st.button("🔮 이 행의 등급 예측하기"):
+                X_p = engineer_features(selected_row)
+                res = le.inverse_transform(model.predict(X_p))[0]
+                st.balloons()
+                st.success(f"### AI 예측 결과: 해당 데이터는 **{res} 등급**으로 예측됩니다.")
+                
+        except Exception as e:
+            st.error(f"시트를 분석하는 과정에서 에러가 발생했습니다. 링크 공유 권한 설정을 확인하세요. \n\n 에러내용: {e}")
